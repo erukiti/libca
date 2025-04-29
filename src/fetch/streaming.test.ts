@@ -1,12 +1,16 @@
 /**
- * このファイルは、ストリーミングクライアントのテストを実装します。
+ * このファイルは、ストリーミング機能のテストを実装します。
  */
 
 import { expect, test, describe, afterEach } from "bun:test";
-import { StreamingClient, createStreamingClient } from "./streaming.ts";
+import {
+  createStreamConfig,
+  streamRequest,
+  parseSSE,
+} from "./streaming.ts";
 import { isSuccess, isFailure } from "../result/utils.ts";
 
-describe("StreamingClient", () => {
+describe("Streaming Functions", () => {
   // 各テストの前後に実行される関数
   const originalFetch = global.fetch;
   
@@ -15,22 +19,30 @@ describe("StreamingClient", () => {
     global.fetch = originalFetch;
   });
   
-  test("should be created with default options", () => {
-    const client = new StreamingClient();
-    expect(client).toBeDefined();
+  test("should create config with default options", () => {
+    const config = createStreamConfig();
+    expect(config).toBeDefined();
+    expect(config.headers).toEqual({
+      "Accept": "text/event-stream",
+    });
   });
   
-  test("should be created using factory function", () => {
-    const client = createStreamingClient({
+  test("should create config with custom options", () => {
+    const config = createStreamConfig({
       baseUrl: "https://api.example.com",
+      headers: { "X-API-KEY": "test-key" },
     });
-    expect(client).toBeDefined();
-    expect(client).toBeInstanceOf(StreamingClient);
+    expect(config).toBeDefined();
+    expect(config.baseUrl).toBe("https://api.example.com");
+    expect(config.headers).toEqual({
+      "Accept": "text/event-stream",
+      "X-API-KEY": "test-key"
+    });
   });
   
   test("parseSSE should correctly parse SSE data", () => {
     const sseData = "event: update\nid: 123\ndata: {\"value\": 42}\n\n";
-    const parsed = StreamingClient.parseSSE(sseData);
+    const parsed = parseSSE(sseData);
     
     expect(parsed.event).toBe("update");
     expect(parsed.id).toBe("123");
@@ -39,7 +51,7 @@ describe("StreamingClient", () => {
   
   test("parseSSE should handle multiline data", () => {
     const sseData = "event: message\ndata: line 1\ndata: line 2\ndata: line 3\n\n";
-    const parsed = StreamingClient.parseSSE(sseData);
+    const parsed = parseSSE(sseData);
     
     expect(parsed.event).toBe("message");
     expect(parsed.data).toBe("line 1\nline 2\nline 3");
@@ -47,7 +59,7 @@ describe("StreamingClient", () => {
   
   test("parseSSE should handle retry field", () => {
     const sseData = "retry: 5000\ndata: reconnect in 5 seconds\n\n";
-    const parsed = StreamingClient.parseSSE(sseData);
+    const parsed = parseSSE(sseData);
     
     expect(parsed.retry).toBe(5000);
     expect(parsed.data).toBe("reconnect in 5 seconds");
@@ -66,7 +78,7 @@ describe("StreamingClient", () => {
     // @ts-ignore - テスト用にfetchをモック
     global.fetch = async () => errorResponse;
     
-    const client = createStreamingClient({
+    const config = createStreamConfig({
       baseUrl: "https://api.example.com",
     });
     
@@ -74,7 +86,7 @@ describe("StreamingClient", () => {
     let errorCalled = false;
     let errorInfo: unknown;
     
-    const result = await client.stream("/events", {
+    const result = await streamRequest(config, "/events", {
       onError: (error) => {
         errorCalled = true;
         errorInfo = error;
@@ -101,14 +113,14 @@ describe("StreamingClient", () => {
       throw new Error("Network error");
     };
     
-    const client = createStreamingClient({
+    const config = createStreamConfig({
       baseUrl: "https://api.example.com",
     });
     
     // エラーハンドラをモック
     let errorCalled = false;
     
-    const result = await client.stream("/events", {
+    const result = await streamRequest(config, "/events", {
       onError: () => {
         errorCalled = true;
       },

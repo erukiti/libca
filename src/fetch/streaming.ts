@@ -6,9 +6,9 @@ import type { Result } from "../result/types.ts";
 import { success, failure, isSuccess } from "../result/utils.ts";
 import type { Logger } from "../logger/types.ts";
 import { createLogger } from "../logger/index.ts";
-import type { StreamingOptions, FetchErrorInfo } from "./types.ts";
+import type { StreamingOptions, FetchErrorInfo, StreamConfig } from "./types.ts";
 import { _fetchCreateNetworkError, _fetchCreateErrorFromResponse } from "./error.ts";
-import { FetchClient } from "./client.ts";
+import { createFetchConfig } from "./client.ts";
 
 /**
  * ストリーミングリクエストを送信する
@@ -150,116 +150,91 @@ export async function _fetchStreamRequest(
 }
 
 /**
- * ストリーミングクライアントクラス
- * SSEなどのストリーミングデータの処理機能を提供
+ * ストリーミング設定オブジェクトを作成する
+ * @param options 設定オプション
+ * @returns ストリーミング設定オブジェクト
  */
-export class StreamingClient {
-  private fetchClient: FetchClient;
-  private logger: Logger;
+export function createStreamConfig(options: Partial<StreamConfig> = {}): StreamConfig {
+  const { logger = createLogger(), ...fetchOptions } = options;
   
-  /**
-   * ストリーミングクライアントを初期化
-   * @param options クライアントオプション
-   */
-  constructor(options: {
-    baseUrl?: string;
-    headers?: Record<string, string>;
-    logger?: Logger;
-  } = {}) {
-    const { baseUrl, headers, logger = createLogger() } = options;
-    
-    this.fetchClient = new FetchClient({
-      baseUrl,
-      headers,
+  return {
+    ...createFetchConfig({
+      ...fetchOptions,
+      headers: {
+        "Accept": "text/event-stream",
+        ...fetchOptions.headers,
+      },
       logger,
-    });
-    
-    this.logger = logger;
-  }
-  
-  /**
-   * ストリーミングリクエストを送信する
-   * @param url リクエストURL
-   * @param options ストリーミングオプション
-   * @returns 成功時はvoid、失敗時はFetchErrorInfo
-   */
-  async stream(
-    url: string,
-    options: StreamingOptions = {}
-  ): Promise<Result<void, FetchErrorInfo>> {
-    const client = this.fetchClient;
-    // FetchClientのprivateプロパティにアクセスするが、設計上は合理的
-    // FetchClientのprivateプロパティにアクセス
-    // 設計上は問題ないが、TypeScriptの型安全性のためにunknownを経由してキャスト
-    const baseUrl = ((client as unknown) as { baseUrl?: string }).baseUrl;
-    
-    return _fetchStreamRequest(url, {
-      ...options,
-      baseUrl,
-      logger: this.logger,
-    });
-  }
-  
-  /**
-   * SSE形式のデータをパースする
-   * @param eventData SSEイベントデータ
-   * @returns パースされたイベントデータ
-   */
-  static parseSSE(eventData: string): {
+    }),
+  };
+}
+
+/**
+ * ストリーミングリクエストを送信する関数
+ * @param config ストリーミング設定オブジェクト
+ * @param url リクエストURL
+ * @param options ストリーミングオプション
+ * @returns 成功時はvoid、失敗時はFetchErrorInfo
+ */
+export async function streamRequest(
+  config: StreamConfig,
+  url: string,
+  options: StreamingOptions = {}
+): Promise<Result<void, FetchErrorInfo>> {
+  return _fetchStreamRequest(url, {
+    ...options,
+    baseUrl: config.baseUrl,
+    headers: { ...config.headers, ...options.headers },
+    logger: config.logger,
+  });
+}
+
+/**
+ * SSE形式のデータをパースする
+ * @param eventData SSEイベントデータ
+ * @returns パースされたイベントデータ
+ */
+export function parseSSE(eventData: string): {
+  event?: string;
+  data?: string;
+  id?: string;
+  retry?: number;
+} {
+  const result: {
     event?: string;
     data?: string;
     id?: string;
     retry?: number;
-  } {
-    const result: {
-      event?: string;
-      data?: string;
-      id?: string;
-      retry?: number;
-    } = {};
+  } = {};
+  
+  // イベントを行ごとに分割して処理
+  const lines = eventData.split("\n");
+  for (const line of lines) {
+    if (!line.trim()) continue;
     
-    // イベントを行ごとに分割して処理
-    const lines = eventData.split("\n");
-    for (const line of lines) {
-      if (!line.trim()) continue;
-      
-      // フィールド名とその値を取得
-      const colonIndex = line.indexOf(":");
-      if (colonIndex === -1) continue;
-      
-      const field = line.substring(0, colonIndex);
-      // 先頭のスペースをスキップ
-      const value = line.substring(colonIndex + 1).trim();
-      
-      switch (field) {
-        case "event":
-          result.event = value;
-          break;
-        case "data":
-          result.data = result.data ? `${result.data}\n${value}` : value;
-          break;
-        case "id":
-          result.id = value;
-          break;
-        case "retry":
-          result.retry = Number.parseInt(value, 10);
-          break;
-      }
+    // フィールド名とその値を取得
+    const colonIndex = line.indexOf(":");
+    if (colonIndex === -1) continue;
+    
+    const field = line.substring(0, colonIndex);
+    // 先頭のスペースをスキップ
+    const value = line.substring(colonIndex + 1).trim();
+    
+    switch (field) {
+      case "event":
+        result.event = value;
+        break;
+      case "data":
+        result.data = result.data ? `${result.data}\n${value}` : value;
+        break;
+      case "id":
+        result.id = value;
+        break;
+      case "retry":
+        result.retry = Number.parseInt(value, 10);
+        break;
     }
-    
-    return result;
   }
-}
-
-/**
- * ストリーミングクライアントを作成する
- * @param options クライアントオプション
- * @returns ストリーミングクライアントインスタンス
- */
-export function createStreamingClient(options: {
-  baseUrl?: string;
-  headers?: Record<string, string>;
-  logger?: Logger;
-} = {}): StreamingClient {
-  return new StreamingClient(options);
+  
+  return result;
 }

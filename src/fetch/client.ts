@@ -1,5 +1,5 @@
 /**
- * このファイルは、基本的なFetchクライアント実装の責務を持ちます。
+ * このファイルは、基本的なFetch機能実装の責務を持ちます。
  */
 
 import type { Result, ErrorInfo } from "../result/types.ts";
@@ -10,7 +10,7 @@ import { retryResult } from "../retry/retry-result.ts";
 import { exponentialBackoffWithJitter } from "../retry/backoff.ts";
 import type {
   HttpMethod,
-  FetchClientOptions,
+  FetchConfig,
   RequestOptions,
   FetchErrorInfo,
   RetryOptions,
@@ -30,7 +30,7 @@ import {
  */
 export async function _fetchFetchWithTimeout(
   url: string,
-  options: RequestInit & { 
+  options: RequestInit & {
     timeout?: number;
     method?: string;
     logger?: Logger;
@@ -207,161 +207,159 @@ export async function _fetchProcessRequest(
 }
 
 /**
- * FetchClientクラス
- * 基本的なHTTPリクエスト機能を提供
+ * Fetch設定オブジェクトを作成する
+ * @param options 設定オプション
+ * @returns Fetch設定オブジェクト
  */
-export class FetchClient {
-  private baseUrl?: string;
-  private defaultHeaders: Record<string, string>;
-  private defaultTimeout?: number;
-  private defaultRetry?: RetryOptions;
-  private logger: Logger;
+export function createFetchConfig(options: Partial<FetchConfig> = {}): FetchConfig {
+  const {
+    baseUrl,
+    headers = {},
+    timeout,
+    retry,
+    logger = createLogger(),
+  } = options;
   
-  /**
-   * FetchClientを初期化
-   * @param options クライアントオプション
-   */
-  constructor(options: FetchClientOptions = {}) {
-    const {
-      baseUrl,
-      headers = {},
-      timeout,
-      retry,
-      logger = createLogger(),
-    } = options;
-    
-    this.baseUrl = baseUrl;
-    this.defaultHeaders = headers;
-    this.defaultTimeout = timeout;
-    this.defaultRetry = retry;
-    this.logger = logger;
-  }
-  
-  /**
-   * リクエストを送信する
-   * @param url リクエストURL
-   * @param options リクエストオプション
-   * @returns レスポンスを含むResult
-   */
-  async request(
-    url: string,
-    options: RequestOptions = {}
-  ): Promise<Result<Response, FetchErrorInfo>> {
-    const mergedOptions = {
-      ...options,
-      baseUrl: this.baseUrl,
-      headers: { ...this.defaultHeaders, ...options.headers },
-      timeout: options.timeout ?? this.defaultTimeout,
-      retry: options.retry ?? this.defaultRetry,
-      logger: this.logger,
-    };
-    
-    return _fetchProcessRequest(url, mergedOptions);
-  }
-  
-  /**
-   * GETリクエストを送信する
-   * @param url リクエストURL
-   * @param options リクエストオプション
-   * @returns レスポンスを含むResult
-   */
-  async get(
-    url: string,
-    options: Omit<RequestOptions, "method"> = {}
-  ): Promise<Result<Response, FetchErrorInfo>> {
-    return this.request(url, { ...options, method: "GET" });
-  }
-  
-  /**
-   * POSTリクエストを送信する
-   * @param url リクエストURL
-   * @param body リクエストボディ
-   * @param options リクエストオプション
-   * @returns レスポンスを含むResult
-   */
-  async post(
-    url: string,
-    body: unknown,
-    options: Omit<RequestOptions, "method" | "body"> = {}
-  ): Promise<Result<Response, FetchErrorInfo>> {
-    return this.request(url, { ...options, method: "POST", body });
-  }
-  
-  /**
-   * PUTリクエストを送信する
-   * @param url リクエストURL
-   * @param body リクエストボディ
-   * @param options リクエストオプション
-   * @returns レスポンスを含むResult
-   */
-  async put(
-    url: string,
-    body: unknown,
-    options: Omit<RequestOptions, "method" | "body"> = {}
-  ): Promise<Result<Response, FetchErrorInfo>> {
-    return this.request(url, { ...options, method: "PUT", body });
-  }
-  
-  /**
-   * DELETEリクエストを送信する
-   * @param url リクエストURL
-   * @param options リクエストオプション
-   * @returns レスポンスを含むResult
-   */
-  async delete(
-    url: string,
-    options: Omit<RequestOptions, "method"> = {}
-  ): Promise<Result<Response, FetchErrorInfo>> {
-    return this.request(url, { ...options, method: "DELETE" });
-  }
-  
-  /**
-   * PATCHリクエストを送信する
-   * @param url リクエストURL
-   * @param body リクエストボディ
-   * @param options リクエストオプション
-   * @returns レスポンスを含むResult
-   */
-  async patch(
-    url: string,
-    body: unknown,
-    options: Omit<RequestOptions, "method" | "body"> = {}
-  ): Promise<Result<Response, FetchErrorInfo>> {
-    return this.request(url, { ...options, method: "PATCH", body });
-  }
-  
-  /**
-   * HEADリクエストを送信する
-   * @param url リクエストURL
-   * @param options リクエストオプション
-   * @returns レスポンスを含むResult
-   */
-  async head(
-    url: string,
-    options: Omit<RequestOptions, "method"> = {}
-  ): Promise<Result<Response, FetchErrorInfo>> {
-    return this.request(url, { ...options, method: "HEAD" });
-  }
-  
-  /**
-   * OPTIONSリクエストを送信する
-   * @param url リクエストURL
-   * @param options リクエストオプション
-   * @returns レスポンスを含むResult
-   */
-  async options(
-    url: string,
-    options: Omit<RequestOptions, "method"> = {}
-  ): Promise<Result<Response, FetchErrorInfo>> {
-    return this.request(url, { ...options, method: "OPTIONS" });
-  }
+  return {
+    baseUrl,
+    headers,
+    timeout,
+    retry,
+    logger,
+  };
 }
 
 /**
- * デフォルトのFetchClientインスタンスを作成
- * @param options クライアントオプション
- * @returns FetchClientインスタンス
+ * リクエストを送信する関数
+ * @param config Fetch設定オブジェクト
+ * @param url リクエストURL
+ * @param options リクエストオプション
+ * @returns レスポンスを含むResult
  */
-export function createFetchClient(options: FetchClientOptions = {}): FetchClient {
-  return new FetchClient(options);
+export async function fetchRequest(
+  config: FetchConfig,
+  url: string,
+  options: RequestOptions = {}
+): Promise<Result<Response, FetchErrorInfo>> {
+  const mergedOptions = {
+    ...options,
+    baseUrl: config.baseUrl,
+    headers: { ...config.headers, ...options.headers },
+    timeout: options.timeout ?? config.timeout,
+    retry: options.retry ?? config.retry,
+    logger: config.logger,
+  };
+  
+  return _fetchProcessRequest(url, mergedOptions);
+}
+
+/**
+ * GETリクエストを送信する関数
+ * @param config Fetch設定オブジェクト
+ * @param url リクエストURL
+ * @param options リクエストオプション
+ * @returns レスポンスを含むResult
+ */
+export async function fetchGet(
+  config: FetchConfig,
+  url: string,
+  options: Omit<RequestOptions, "method"> = {}
+): Promise<Result<Response, FetchErrorInfo>> {
+  return fetchRequest(config, url, { ...options, method: "GET" });
+}
+
+/**
+ * POSTリクエストを送信する関数
+ * @param config Fetch設定オブジェクト
+ * @param url リクエストURL
+ * @param body リクエストボディ
+ * @param options リクエストオプション
+ * @returns レスポンスを含むResult
+ */
+export async function fetchPost(
+  config: FetchConfig,
+  url: string,
+  body: unknown,
+  options: Omit<RequestOptions, "method" | "body"> = {}
+): Promise<Result<Response, FetchErrorInfo>> {
+  return fetchRequest(config, url, { ...options, method: "POST", body });
+}
+
+/**
+ * PUTリクエストを送信する関数
+ * @param config Fetch設定オブジェクト
+ * @param url リクエストURL
+ * @param body リクエストボディ
+ * @param options リクエストオプション
+ * @returns レスポンスを含むResult
+ */
+export async function fetchPut(
+  config: FetchConfig,
+  url: string,
+  body: unknown,
+  options: Omit<RequestOptions, "method" | "body"> = {}
+): Promise<Result<Response, FetchErrorInfo>> {
+  return fetchRequest(config, url, { ...options, method: "PUT", body });
+}
+
+/**
+ * DELETEリクエストを送信する関数
+ * @param config Fetch設定オブジェクト
+ * @param url リクエストURL
+ * @param options リクエストオプション
+ * @returns レスポンスを含むResult
+ */
+export async function fetchDelete(
+  config: FetchConfig,
+  url: string,
+  options: Omit<RequestOptions, "method"> = {}
+): Promise<Result<Response, FetchErrorInfo>> {
+  return fetchRequest(config, url, { ...options, method: "DELETE" });
+}
+
+/**
+ * PATCHリクエストを送信する関数
+ * @param config Fetch設定オブジェクト
+ * @param url リクエストURL
+ * @param body リクエストボディ
+ * @param options リクエストオプション
+ * @returns レスポンスを含むResult
+ */
+export async function fetchPatch(
+  config: FetchConfig,
+  url: string,
+  body: unknown,
+  options: Omit<RequestOptions, "method" | "body"> = {}
+): Promise<Result<Response, FetchErrorInfo>> {
+  return fetchRequest(config, url, { ...options, method: "PATCH", body });
+}
+
+/**
+ * HEADリクエストを送信する関数
+ * @param config Fetch設定オブジェクト
+ * @param url リクエストURL
+ * @param options リクエストオプション
+ * @returns レスポンスを含むResult
+ */
+export async function fetchHead(
+  config: FetchConfig,
+  url: string,
+  options: Omit<RequestOptions, "method"> = {}
+): Promise<Result<Response, FetchErrorInfo>> {
+  return fetchRequest(config, url, { ...options, method: "HEAD" });
+}
+
+/**
+ * OPTIONSリクエストを送信する関数
+ * @param config Fetch設定オブジェクト
+ * @param url リクエストURL
+ * @param options リクエストオプション
+ * @returns レスポンスを含むResult
+ */
+export async function fetchOptions(
+  config: FetchConfig,
+  url: string,
+  options: Omit<RequestOptions, "method"> = {}
+): Promise<Result<Response, FetchErrorInfo>> {
+  return fetchRequest(config, url, { ...options, method: "OPTIONS" });
 }

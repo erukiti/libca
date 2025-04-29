@@ -1,12 +1,16 @@
 /**
- * このファイルは、基本的なFetchクライアントのテストを実装します。
+ * このファイルは、基本的なFetch関数のテストを実装します。
  */
 
 import { expect, test, describe, beforeEach, afterEach } from "bun:test";
-import { FetchClient, createFetchClient } from "./client.ts";
+import {
+  createFetchConfig,
+  fetchGet,
+  fetchPost,
+} from "./client.ts";
 import { isSuccess, isFailure } from "../result/utils.ts";
 
-describe("FetchClient", () => {
+describe("Fetch Functions", () => {
   // 各テストの前後に実行される関数
   const originalFetch = global.fetch;
   
@@ -15,26 +19,22 @@ describe("FetchClient", () => {
     global.fetch = originalFetch;
   });
   
-  test("should be created with default options", () => {
-    const client = new FetchClient();
-    expect(client).toBeDefined();
+  test("should create config with default options", () => {
+    const config = createFetchConfig();
+    expect(config).toBeDefined();
+    expect(config.headers).toEqual({});
   });
   
-  test("should be created with custom options", () => {
-    const client = new FetchClient({
+  test("should create config with custom options", () => {
+    const config = createFetchConfig({
       baseUrl: "https://api.example.com",
       headers: { "X-API-KEY": "test-key" },
       timeout: 5000,
     });
-    expect(client).toBeDefined();
-  });
-  
-  test("should be created using factory function", () => {
-    const client = createFetchClient({
-      baseUrl: "https://api.example.com",
-    });
-    expect(client).toBeDefined();
-    expect(client).toBeInstanceOf(FetchClient);
+    expect(config).toBeDefined();
+    expect(config.baseUrl).toBe("https://api.example.com");
+    expect(config.headers).toEqual({ "X-API-KEY": "test-key" });
+    expect(config.timeout).toBe(5000);
   });
   
   test("should handle successful GET request", async () => {
@@ -50,11 +50,11 @@ describe("FetchClient", () => {
     // @ts-ignore - テスト用にfetchをモック
     global.fetch = async () => mockResponse;
     
-    const client = new FetchClient({
+    const config = createFetchConfig({
       baseUrl: "https://api.example.com",
     });
     
-    const result = await client.get("/users/1");
+    const result = await fetchGet(config, "/users/1");
     
     expect(isSuccess(result)).toBe(true);
   });
@@ -72,11 +72,11 @@ describe("FetchClient", () => {
     // @ts-ignore - テスト用にfetchをモック
     global.fetch = async () => errorResponse;
     
-    const client = new FetchClient({
+    const config = createFetchConfig({
       baseUrl: "https://api.example.com",
     });
     
-    const result = await client.get("/users/999");
+    const result = await fetchGet(config, "/users/999");
     
     expect(isFailure(result)).toBe(true);
     
@@ -94,11 +94,11 @@ describe("FetchClient", () => {
       throw new Error("Network error");
     };
     
-    const client = new FetchClient({
+    const config = createFetchConfig({
       baseUrl: "https://api.example.com",
     });
     
-    const result = await client.get("/users/1");
+    const result = await fetchGet(config, "/users/1");
     
     expect(isFailure(result)).toBe(true);
     

@@ -1,13 +1,17 @@
 /**
- * このファイルは、JSONクライアントのテストを実装します。
+ * このファイルは、JSON機能のテストを実装します。
  */
 
 import { expect, test, describe, afterEach } from "bun:test";
-import { JsonClient, createJsonClient } from "./json-client.ts";
+import {
+  createJsonConfig,
+  jsonGet,
+  jsonPost,
+} from "./json-client.ts";
 import { isSuccess, isFailure } from "../result/utils.ts";
 import { z } from "zod";
 
-describe("JsonClient", () => {
+describe("JSON Functions", () => {
   // 各テストの前後に実行される関数
   const originalFetch = global.fetch;
   
@@ -16,17 +20,27 @@ describe("JsonClient", () => {
     global.fetch = originalFetch;
   });
   
-  test("should be created with default options", () => {
-    const client = new JsonClient();
-    expect(client).toBeDefined();
+  test("should create config with default options", () => {
+    const config = createJsonConfig();
+    expect(config).toBeDefined();
+    expect(config.headers).toEqual({
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+    });
   });
   
-  test("should be created using factory function", () => {
-    const client = createJsonClient({
+  test("should create config with custom options", () => {
+    const config = createJsonConfig({
       baseUrl: "https://api.example.com",
+      headers: { "X-API-KEY": "test-key" },
     });
-    expect(client).toBeDefined();
-    expect(client).toBeInstanceOf(JsonClient);
+    expect(config).toBeDefined();
+    expect(config.baseUrl).toBe("https://api.example.com");
+    expect(config.headers).toEqual({
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      "X-API-KEY": "test-key"
+    });
   });
   
   test("should handle successful GET request with valid data", async () => {
@@ -52,11 +66,11 @@ describe("JsonClient", () => {
       age: z.number(),
     });
     
-    const client = createJsonClient({
+    const config = createJsonConfig({
       baseUrl: "https://api.example.com",
     });
     
-    const result = await client.get(userSchema, "/users/1");
+    const result = await jsonGet(config, userSchema, "/users/1");
     
     expect(isSuccess(result)).toBe(true);
     
@@ -92,11 +106,11 @@ describe("JsonClient", () => {
       age: z.number(),
     });
     
-    const client = createJsonClient({
+    const config = createJsonConfig({
       baseUrl: "https://api.example.com",
     });
     
-    const result = await client.get(userSchema, "/users/1");
+    const result = await jsonGet(config, userSchema, "/users/1");
     
     // バリデーションエラーが発生することを確認
     expect(isFailure(result)).toBe(true);
@@ -128,11 +142,11 @@ describe("JsonClient", () => {
       name: z.string(),
     });
     
-    const client = createJsonClient({
+    const config = createJsonConfig({
       baseUrl: "https://api.example.com",
     });
     
-    const result = await client.get(userSchema, "/users/1");
+    const result = await jsonGet(config, userSchema, "/users/1");
     
     // JSONパースエラーが発生することを確認
     expect(isFailure(result)).toBe(true);
@@ -162,11 +176,11 @@ describe("JsonClient", () => {
       name: z.string(),
     });
     
-    const client = createJsonClient({
+    const config = createJsonConfig({
       baseUrl: "https://api.example.com",
     });
     
-    const result = await client.get(userSchema, "/users/1");
+    const result = await jsonGet(config, userSchema, "/users/1");
     
     // HTTPエラーが発生することを確認
     expect(isFailure(result)).toBe(true);
@@ -206,13 +220,13 @@ describe("JsonClient", () => {
       created: z.boolean(),
     });
     
-    const client = createJsonClient({
+    const config = createJsonConfig({
       baseUrl: "https://api.example.com",
     });
     
     // POSTリクエストを送信
     const newUser = { name: "New User", email: "user@example.com" };
-    const result = await client.post(responseSchema, "/users", newUser);
+    const result = await jsonPost(config, responseSchema, "/users", newUser);
     
     // リクエストが正常に処理されたことを確認
     expect(isSuccess(result)).toBe(true);

@@ -11,9 +11,9 @@ import type { ErrorInfo } from "../result/types.ts";
 export type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH" | "HEAD" | "OPTIONS";
 
 /**
- * Fetchクライアントのオプション
+ * Fetch設定オブジェクト
  */
-export interface FetchClientOptions {
+export interface FetchConfig {
   /** ベースURL */
   baseUrl?: string;
   /** デフォルトのヘッダー */
@@ -24,6 +24,20 @@ export interface FetchClientOptions {
   retry?: RetryOptions;
   /** ロガー */
   logger?: Logger;
+}
+
+/**
+ * JSON設定オブジェクト
+ */
+export interface JsonConfig extends FetchConfig {
+  /** JSON特有の設定オプションがあれば追加 */
+}
+
+/**
+ * ストリーミング設定オブジェクト
+ */
+export interface StreamConfig extends FetchConfig {
+  /** ストリーミング特有の設定オプションがあれば追加 */
 }
 
 /**
@@ -100,68 +114,6 @@ export interface StreamingOptions extends RequestOptions {
   onError?: (error: FetchErrorInfo) => void;
   /** ロガー */
   logger?: Logger;
-}
-
-/**
- * JSONクライアントのインターフェース
- */
-export interface JsonClient {
-  /**
-   * リクエストを送信し、zodスキーマでレスポンスを検証する
-   */
-  request<T>(
-    schema: z.ZodSchema<T>,
-    url: string,
-    options?: RequestOptions
-  ): Promise<Result<T, FetchErrorInfo>>;
-  
-  /**
-   * GETリクエストを送信する
-   */
-  get<T>(
-    schema: z.ZodSchema<T>,
-    url: string,
-    options?: Omit<RequestOptions, "method">
-  ): Promise<Result<T, FetchErrorInfo>>;
-  
-  /**
-   * POSTリクエストを送信する
-   */
-  post<T>(
-    schema: z.ZodSchema<T>,
-    url: string,
-    body: unknown,
-    options?: Omit<RequestOptions, "method" | "body">
-  ): Promise<Result<T, FetchErrorInfo>>;
-  
-  /**
-   * PUTリクエストを送信する
-   */
-  put<T>(
-    schema: z.ZodSchema<T>,
-    url: string,
-    body: unknown,
-    options?: Omit<RequestOptions, "method" | "body">
-  ): Promise<Result<T, FetchErrorInfo>>;
-  
-  /**
-   * DELETEリクエストを送信する
-   */
-  delete<T>(
-    schema: z.ZodSchema<T>,
-    url: string,
-    options?: Omit<RequestOptions, "method">
-  ): Promise<Result<T, FetchErrorInfo>>;
-  
-  /**
-   * PATCHリクエストを送信する
-   */
-  patch<T>(
-    schema: z.ZodSchema<T>,
-    url: string,
-    body: unknown,
-    options?: Omit<RequestOptions, "method" | "body">
-  ): Promise<Result<T, FetchErrorInfo>>;
 }
 
 // 他のモジュールからインポートするが、循環参照を避けるために再エクスポートはしない
