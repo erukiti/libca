@@ -78,3 +78,24 @@ src/mcp に MCP 関連のコードを入れてほしい
 コーディングガイドラインを遵守し、コーディング手順に沿ってコーディングせよ
 
 @/plans/20250429-mcp-implementation-1.md 
+
+---
+
+@/docs/design-rule.md
+@/docs/coding-guideline.md
+コーディングガイドラインを遵守し、設計手順を実行せよ
+
+_/agent-core と _/code-sarge と _/ole-copipe から、
+汎化できそうなものをライブラリとして実装したいです。
+
+HTTPクライアントがほしいです。
+* JSON前提でzodスキーマバリデーションまでできるもの
+* より汎用的なHTTPクライアント
+
+---
+
+@/docs/coding-rule.md 
+@/docs/coding-guideline.md
+コーディングガイドラインを遵守し、コーディング手順に沿ってコーディングせよ
+
+@/plans/20250429-http-client-module-1.md 
