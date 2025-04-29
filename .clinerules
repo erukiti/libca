@@ -21,6 +21,19 @@ libcaは、汎用ライブラリ集です。
 - インターフェースベースの設計で、将来的な実装の変更や拡張に対応
 - 最小限の依存関係を維持し、メンテナンス性を高める
 
+### result
+
+- エラー時に error を throw しない
+- src/result にある Result 型を活用する
+
+### retry
+
+- src/retry にある retry 機構を活用する
+
+### logger
+
+- src/logger にある createLogger を活用する
+
 ## 技術スタックと実装詳細
 
 ### 使用技術
