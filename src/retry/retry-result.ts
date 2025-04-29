@@ -1,13 +1,68 @@
 /**
- * このファイルは、Result型を返す関数をリトライするための機能を提供します。
+ * このファイルは、Result型を返す関数をリトライするための機能を提供する責務を持ちます。
+ * Result型と関数型プログラミングアプローチを活用した宣言的な実装です。
  */
 
-import { isFailure, type Result, type ErrorInfo } from "../result/index.ts";
-import type { RetryOptions, BackoffFunction } from "./types.ts";
+import { isSuccess, type Result, type ErrorInfo } from "../result/index.ts";
+import type { RetryResultOptions } from "./types.ts";
 import { exponentialBackoffWithJitter } from "./backoff.ts";
 
 // 内部で使用する型定義
 type AnyErrorInfo = ErrorInfo<string, string>;
+
+/**
+ * デフォルトリトライオプションを実行時オプションとマージする
+ * @param options ユーザー指定オプション
+ * @returns 完全なオプション
+ */
+const prepareResultOptions = <E extends AnyErrorInfo>(options: RetryResultOptions<E>) => {
+  return {
+    maxRetries: options.maxRetries,
+    backoff: options.backoff ?? exponentialBackoffWithJitter(),
+    // デフォルトのリトライ条件：失敗かつ回復可能なエラーの場合
+    retryCondition: options.retryCondition ?? ((error: E) => error.recoverable === true),
+    onRetry: options.onRetry,
+  };
+};
+
+/**
+ * Result型関数をリトライする再帰実装
+ * @param fn 実行する関数
+ * @param preparedOptions 準備済みオプション
+ * @param attempt 現在の試行回数
+ * @returns 最終Result
+ */
+const retryResultRecursive = async <T, E extends AnyErrorInfo>(
+  fn: () => Promise<Result<T, E>>,
+  preparedOptions: ReturnType<typeof prepareResultOptions<E>>,
+  attempt: number = 1
+): Promise<Result<T, E>> => {
+  const { maxRetries, backoff, retryCondition, onRetry } = preparedOptions;
+  
+  // 関数実行
+  const result = await fn();
+  
+  // 成功した場合はそのまま結果を返す
+  if (isSuccess(result)) {
+    return result;
+  }
+  
+  // 最大リトライ回数を超えた、またはリトライ条件を満たさない場合は結果を返す
+  if (attempt >= maxRetries || !retryCondition(result.error, attempt)) {
+    return result;
+  }
+  
+  // リトライコールバックの実行
+  if (onRetry) {
+    onRetry(attempt, result.error);
+  }
+  
+  // バックオフ待機
+  await backoff(attempt);
+  
+  // 再帰的にリトライ
+  return retryResultRecursive(fn, preparedOptions, attempt + 1);
+};
 
 /**
  * Result型を返す非同期関数をリトライする
@@ -19,41 +74,10 @@ type AnyErrorInfo = ErrorInfo<string, string>;
  * @param options リトライオプション
  * @returns 最終的なResult
  */
-export async function retryResult<T, E extends AnyErrorInfo>(
+export const retryResult = async <T, E extends AnyErrorInfo>(
   fn: () => Promise<Result<T, E>>,
-  options: RetryOptions<E>
-): Promise<Result<T, E>> {
-  const { 
-    maxRetries, 
-    backoff = exponentialBackoffWithJitter(),
-    // デフォルトのリトライ条件：失敗かつ回復可能なエラーの場合
-    retryCondition = (error) => error.recoverable === true,
-    onRetry
-  } = options;
-
-  // 初回実行
-  let result = await fn();
-  let attempts = 1;
-
-  // 失敗かつリトライ条件を満たす場合、最大リトライ回数まで再試行
-  while (
-    isFailure(result) &&
-    attempts <= maxRetries &&
-    retryCondition(result.error, attempts)
-  ) {
-    // リトライコールバック（設定されている場合）
-    if (onRetry) {
-      onRetry(attempts, result.error);
-    }
-
-    // バックオフ処理（待機）
-    await backoff(attempts);
-
-    // 再試行
-    result = await fn();
-    attempts++;
-  }
-
-  // 最終結果を返す（成功または失敗）
-  return result;
-}
+  options: RetryResultOptions<E>
+): Promise<Result<T, E>> => {
+  const preparedOptions = prepareResultOptions(options);
+  return retryResultRecursive(fn, preparedOptions);
+};
