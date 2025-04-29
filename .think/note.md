@@ -135,3 +135,22 @@ src/loggerのコードを、classを使わないように書き直して
 [IMPORTANT]: **後方互換性を用意することを絶対に禁じる**
 
 @/plans/20250430-logger-refactoring-1.md 
+
+---
+
+@/docs/design-rule.md
+@/docs/coding-guideline.md
+コーディングガイドラインを遵守し、設計手順を実行せよ
+
+src/retryのコードを、classを使わないように書き直して
+**互換性維持は不要です。絶対に禁じる。**
+[IMPORTANT]: 設計書にも必ず「**後方互換性を用意することを絶対に禁じる**」の文言を出力せよ
+
+---
+
+@/docs/coding-rule.md 
+@/docs/coding-guideline.md
+コーディングガイドラインを遵守し、コーディング手順に沿ってコーディングせよ
+[IMPORTANT]: **後方互換性を用意することを絶対に禁じる**
+
+@/plans/20250430-retry-refactor-1.md 
