@@ -1,0 +1,20 @@
+{
+  "name": "libca",
+  "module": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test src/**/*.test.ts",
+    "dev": "bun run index.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "biome": "^1.2.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "description": "汎用ライブラリ集",
+  "version": "0.1.0",
+  "author": ""
+}
