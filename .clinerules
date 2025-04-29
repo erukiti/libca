@@ -57,7 +57,7 @@ code-sargeは技術的負債を検知するソフトです。
 {
   "runTests": true,
   "validateCode": true,
-  "path": "."
+  "path": ".src/"
 }
 </arguments>
 </use_mcp_tool>
