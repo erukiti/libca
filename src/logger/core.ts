@@ -7,101 +7,6 @@ import type { LogLevel, Logger, LogStrategy, LoggerOptions } from "./types.ts";
 import { _getDefaultStrategy } from "./strategies/index.ts";
 
 /**
- * ロガーの具象クラス
- * @private プライベートAPI
- */
-export class _LoggerImpl implements Logger {
-  private readonly _strategy: LogStrategy;
-  private readonly _minLevelPriority: number;
-  private readonly _context?: string;
-
-  /**
-   * ロガーを初期化する
-   * @param options ロガーオプション
-   */
-  constructor(options: LoggerOptions) {
-    this._strategy = options.strategy ?? _getDefaultStrategy();
-    const minLevel = options.minLevel ?? "debug";
-    this._minLevelPriority = LOG_LEVEL_PRIORITY[minLevel];
-    this._context = options.defaultContext;
-  }
-
-  /**
-   * 指定されたログレベルでログを出力するか判断する
-   * @param level ログレベル
-   * @returns 出力する場合はtrue
-   */
-  private _shouldLog(level: LogLevel): boolean {
-    return LOG_LEVEL_PRIORITY[level] >= this._minLevelPriority;
-  }
-
-  /**
-   * 引数にコンテキストを追加する
-   * @param args 元の引数
-   * @returns コンテキスト付きの引数
-   */
-  private _addContextToArgs(...args: unknown[]): unknown[] {
-    if (!this._context) {
-      return args;
-    }
-    return [`[${this._context}]`, ...args];
-  }
-
-  /**
-   * デバッグログを出力する
-   * @param args ログの引数
-   */
-  debug(...args: unknown[]): void {
-    if (this._shouldLog("debug")) {
-      this._strategy.log("debug", ...this._addContextToArgs(...args));
-    }
-  }
-
-  /**
-   * 情報ログを出力する
-   * @param args ログの引数
-   */
-  info(...args: unknown[]): void {
-    if (this._shouldLog("info")) {
-      this._strategy.log("info", ...this._addContextToArgs(...args));
-    }
-  }
-
-  /**
-   * 警告ログを出力する
-   * @param args ログの引数
-   */
-  warn(...args: unknown[]): void {
-    if (this._shouldLog("warn")) {
-      this._strategy.log("warn", ...this._addContextToArgs(...args));
-    }
-  }
-
-  /**
-   * エラーログを出力する
-   * @param args ログの引数
-   */
-  error(...args: unknown[]): void {
-    if (this._shouldLog("error")) {
-      this._strategy.log("error", ...this._addContextToArgs(...args));
-    }
-  }
-
-  /**
-   * 新しいコンテキスト付きロガーを作成する
-   * @param context コンテキスト名
-   * @returns 新しいロガーインスタンス
-   */
-  withContext(context: string): Logger {
-    return new _LoggerImpl({
-      strategy: this._strategy,
-      minLevel: _getLogLevelFromPriority(this._minLevelPriority),
-      defaultContext: context,
-    });
-  }
-}
-
-/**
  * 優先度からログレベルを取得する
  * @param priority ログレベル優先度
  * @returns ログレベル
@@ -115,30 +20,94 @@ function _getLogLevelFromPriority(priority: number): LogLevel {
   return "debug"; // デフォルト値
 }
 
-
 /**
- * ロガーファクトリー
- * @returns ロガーを作成する関数
+ * ロガーの実装を作成する
+ * @private プライベートAPI
+ * @param options ロガーオプション
+ * @returns ロガーオブジェクト
  */
-export function createLoggerFactory() {
-  let defaultLogger: Logger | null = null;
+export function _createLoggerImpl(options: LoggerOptions): Logger {
+  const strategy = options.strategy ?? _getDefaultStrategy();
+  const minLevel = options.minLevel ?? "debug";
+  const minLevelPriority = LOG_LEVEL_PRIORITY[minLevel];
+  const context = options.defaultContext;
 
   /**
-   * ロガーを作成する
-   * @param options ロガーオプション
-   * @returns ロガーインスタンス
+   * 指定されたログレベルでログを出力するか判断する
+   * @param level ログレベル
+   * @returns 出力する場合はtrue
    */
-  return function createLogger(options: LoggerOptions = {}): Logger {
-    if (!options.strategy && !options.minLevel && !options.defaultContext && defaultLogger) {
-      return defaultLogger;
-    }
-    
-    const logger = new _LoggerImpl(options);
-    
-    if (!defaultLogger && !options.strategy && !options.minLevel && !options.defaultContext) {
-      defaultLogger = logger;
-    }
-    
-    return logger;
+  const shouldLog = (level: LogLevel): boolean => {
+    return LOG_LEVEL_PRIORITY[level] >= minLevelPriority;
   };
+
+  /**
+   * 引数にコンテキストを追加する
+   * @param args 元の引数
+   * @returns コンテキスト付きの引数
+   */
+  const addContextToArgs = (...args: unknown[]): unknown[] => {
+    if (!context) {
+      return args;
+    }
+    return [`[${context}]`, ...args];
+  };
+
+  return {
+    debug(...args: unknown[]): void {
+      if (shouldLog("debug")) {
+        strategy.log("debug", ...addContextToArgs(...args));
+      }
+    },
+    
+    info(...args: unknown[]): void {
+      if (shouldLog("info")) {
+        strategy.log("info", ...addContextToArgs(...args));
+      }
+    },
+    
+    warn(...args: unknown[]): void {
+      if (shouldLog("warn")) {
+        strategy.log("warn", ...addContextToArgs(...args));
+      }
+    },
+    
+    error(...args: unknown[]): void {
+      if (shouldLog("error")) {
+        strategy.log("error", ...addContextToArgs(...args));
+      }
+    },
+    
+    withContext(newContext: string): Logger {
+      return _createLoggerImpl({
+        strategy,
+        minLevel: _getLogLevelFromPriority(minLevelPriority),
+        defaultContext: newContext,
+      });
+    }
+  };
+}
+
+// デフォルトロガーのキャッシュ
+let defaultLogger: Logger | null = null;
+
+/**
+ * ロガーを作成する
+ * @param options ロガーオプション
+ * @returns ロガーインスタンス
+ */
+export function createLogger(options: LoggerOptions = {}): Logger {
+  // オプションが指定されていない場合はキャッシュされたデフォルトロガーを返す
+  if (!options.strategy && !options.minLevel && !options.defaultContext && defaultLogger) {
+    return defaultLogger;
+  }
+  
+  const logger = _createLoggerImpl(options);
+  
+  // デフォルトロガーが未設定でオプションも指定されていない場合はキャッシュする
+  if (!defaultLogger && !options.strategy && !options.minLevel && !options.defaultContext) {
+    defaultLogger = logger;
+  }
+  
+  return logger;
 }

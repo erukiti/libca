@@ -27,37 +27,6 @@ export function _getISOTimestamp(): string {
   return new Date().toISOString();
 }
 
-/**
- * オブジェクトを安全にJSON文字列化する
- * @param obj 変換対象のオブジェクト
- * @param options フォーマットオプション
- * @returns JSON文字列
- */
-export function _safeStringify(
-  obj: unknown, 
-  options: { maxDepth?: number; maxArrayLength?: number } = {}
-): string {
-  const { maxDepth = 10, maxArrayLength = 100 } = options;
-  
-  const visited = new WeakSet();
-  
-  return JSON.stringify(obj, (key, value) => {
-    // 循環参照チェック (オブジェクトの場合のみ)
-    if (value !== null && typeof value === "object") {
-      if (visited.has(value)) {
-        return "[Circular Reference]";
-      }
-      visited.add(value);
-    }
-    
-    // 配列の場合、長さを制限する
-    if (Array.isArray(value) && value.length > maxArrayLength) {
-      return [...value.slice(0, maxArrayLength), `[...${value.length - maxArrayLength} more items]`];
-    }
-    
-    return value;
-  }, 2);
-}
 
 /**
  * オブジェクトを階層の深さを制限してコピーする

@@ -2,9 +2,9 @@
  * このファイルは、ロガーストラテジーのエクスポートの責務を持ちます。
  */
 
-export { ConsoleStrategy, createConsoleStrategy } from "./console.ts";
-export { StderrStrategy, createStderrStrategy } from "./stderr.ts";
-export { JsonlStrategy, createJsonlStrategy } from "./jsonl.ts";
+export { createConsoleStrategy } from "./console.ts";
+export { createStderrStrategy } from "./stderr.ts";
+export { createJsonlStrategy } from "./jsonl.ts";
 
 // 実行環境に適したデフォルトのストラテジーを提供
 import { _detectEnvironment } from "../utils.ts";

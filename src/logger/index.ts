@@ -19,7 +19,7 @@ export type {
 } from "./types.ts";
 
 // ロガー作成関数
-import { createLoggerFactory } from "./core.ts";
+import { createLogger } from "./core.ts";
 import { _getDefaultStrategy } from "./strategies/index.ts";
 
 // 戦略のエクスポート
@@ -31,28 +31,28 @@ export {
 
 /**
  * ロガーを作成する関数
- * 
+ *
  * @example
  * ```ts
  * // デフォルトロガーを作成
  * const logger = createLogger();
  * logger.info("アプリケーションが起動しました");
- * 
+ *
  * // コンテキスト付きロガーを作成
  * const dbLogger = logger.withContext("Database");
  * dbLogger.info("接続が確立されました");
- * 
+ *
  * // カスタムストラテジーを使用
  * const fileLogger = createLogger({
  *   strategy: createJsonlStrategy({ destination: "app.log" }),
  *   minLevel: "info"
  * });
  * ```
- * 
+ *
  * @param options ロガーオプション
  * @returns ロガーインスタンス
  */
-export const createLogger = createLoggerFactory();
+export { createLogger };
 
 // デフォルトロガーのエクスポート
 export const logger = createLogger();

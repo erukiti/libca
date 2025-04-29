@@ -9,88 +9,51 @@ import type { LogLevel, LogStrategy, JsonlStrategyOptions } from "../types.ts";
 import { _getISOTimestamp, _limitObjectDepth } from "../utils.ts";
 
 /**
- * JSONL形式出力ストラテジー
+ * JSONL形式出力ストラテジーを作成する
+ * @param options ストラテジーオプション
+ * @returns JSONL形式出力ストラテジー（dispose()メソッド付き）
  */
-export class JsonlStrategy implements LogStrategy {
-  private readonly _destination: "stdout" | "stderr" | string;
-  private readonly _formatOptions: Required<NonNullable<JsonlStrategyOptions["formatOptions"]>>;
-  private _fileStream: fs.WriteStream | null = null;
-
-  /**
-   * JSONL形式出力ストラテジーを初期化する
-   * @param options ストラテジーオプション
-   */
-  constructor(options: JsonlStrategyOptions) {
-    this._destination = options.destination;
-    
-    this._formatOptions = {
-      includeTimestamp: options.formatOptions?.includeTimestamp ?? true,
-      maxDepth: options.formatOptions?.maxDepth ?? 10,
-      maxArrayLength: options.formatOptions?.maxArrayLength ?? 100,
-    };
-    
-    // ファイル出力の場合、ファイルストリームを開く
-    if (this._destination !== "stdout" && this._destination !== "stderr") {
-      this._initFileStream();
-    }
-  }
-
+export function createJsonlStrategy(options: JsonlStrategyOptions): LogStrategy & { dispose?: () => void } {
+  const destination = options.destination;
+  
+  const formatOptions = {
+    includeTimestamp: options.formatOptions?.includeTimestamp ?? true,
+    maxDepth: options.formatOptions?.maxDepth ?? 10,
+    maxArrayLength: options.formatOptions?.maxArrayLength ?? 100,
+  };
+  
+  let fileStream: fs.WriteStream | null = null;
+  
   /**
    * ファイル出力ストリームを初期化する
    */
-  private _initFileStream(): void {
+  const initFileStream = (): void => {
     try {
-      this._fileStream = fs.createWriteStream(this._destination, { flags: "a" });
+      fileStream = fs.createWriteStream(destination, { flags: "a" });
       
       // エラーハンドリング
-      this._fileStream.on("error", (err) => {
-        console.error(`[JsonlStrategy] ファイル書き込みエラー: ${err.message}`);
+      fileStream.on("error", (err) => {
+        console.error(`[JSONL] ファイル書き込みエラー: ${err.message}`);
       });
     } catch (err) {
-      console.error(`[JsonlStrategy] ファイルオープンエラー: ${String(err)}`);
+      console.error(`[JSONL] ファイルオープンエラー: ${String(err)}`);
     }
+  };
+  
+  // ファイル出力の場合、ファイルストリームを開く
+  if (destination !== "stdout" && destination !== "stderr") {
+    initFileStream();
   }
-
-  /**
-   * ログを出力する
-   * @param level ログレベル
-   * @param args ログの引数
-   */
-  log(level: LogLevel, ...args: unknown[]): void {
-    const logEntry = this._formatLogEntry(level, args);
-    const jsonLine = `${JSON.stringify(logEntry)}\n`;
-    
-    this._writeOutput(jsonLine);
-  }
-
-  /**
-   * ログエントリをフォーマットする
-   * @param level ログレベル
-   * @param args ログの引数
-   * @returns フォーマットされたログエントリ
-   */
-  private _formatLogEntry(level: LogLevel, args: unknown[]): Record<string, unknown> {
-    const entry: Record<string, unknown> = {
-      level,
-      message: this._formatArgs(args),
-    };
-    
-    if (this._formatOptions.includeTimestamp) {
-      entry.timestamp = _getISOTimestamp();
-    }
-    
-    return entry;
-  }
-
+  
   /**
    * ログの引数をフォーマットする
    * @param args ログ引数
    * @returns フォーマットされた引数
    */
-  private _formatArgs(args: unknown[]): unknown {
+  const formatArgs = (args: unknown[]): unknown => {
     // 深さを制限したオブジェクトのコピーを作成
-    const processedArgs = args.map(arg => 
-      _limitObjectDepth(arg, this._formatOptions.maxDepth)
+    const processedArgs = args.map(arg =>
+      _limitObjectDepth(arg, formatOptions.maxDepth)
     );
     
     // 単一の引数の場合はそのまま返す
@@ -100,43 +63,67 @@ export class JsonlStrategy implements LogStrategy {
     
     // 複数の引数の場合は配列として返す
     return processedArgs;
-  }
-
+  };
+  
+  /**
+   * ログエントリをフォーマットする
+   * @param level ログレベル
+   * @param args ログの引数
+   * @returns フォーマットされたログエントリ
+   */
+  const formatLogEntry = (level: LogLevel, args: unknown[]): Record<string, unknown> => {
+    const entry: Record<string, unknown> = {
+      level,
+      message: formatArgs(args),
+    };
+    
+    if (formatOptions.includeTimestamp) {
+      entry.timestamp = _getISOTimestamp();
+    }
+    
+    return entry;
+  };
+  
   /**
    * 出力先にログを書き込む
    * @param jsonLine JSONLフォーマットのログ行
    */
-  private _writeOutput(jsonLine: string): void {
+  const writeOutput = (jsonLine: string): void => {
     try {
-      if (this._destination === "stdout") {
+      if (destination === "stdout") {
         process.stdout.write(jsonLine);
-      } else if (this._destination === "stderr") {
+      } else if (destination === "stderr") {
         process.stderr.write(jsonLine);
-      } else if (this._fileStream) {
-        this._fileStream.write(jsonLine);
+      } else if (fileStream) {
+        fileStream.write(jsonLine);
       }
     } catch (err) {
       // エラーが発生した場合はstderrにフォールバック
-      console.error(`[JsonlStrategy] 出力エラー: ${String(err)}`);
+      console.error(`[JSONL] 出力エラー: ${String(err)}`);
     }
-  }
-
-  /**
-   * リソースを解放する
-   */
-  dispose(): void {
-    if (this._fileStream) {
-      this._fileStream.end();
-      this._fileStream = null;
+  };
+  
+  return {
+    /**
+     * ログを出力する
+     * @param level ログレベル
+     * @param args ログの引数
+     */
+    log(level: LogLevel, ...args: unknown[]): void {
+      const logEntry = formatLogEntry(level, args);
+      const jsonLine = `${JSON.stringify(logEntry)}\n`;
+      
+      writeOutput(jsonLine);
+    },
+    
+    /**
+     * リソースを解放する
+     */
+    dispose(): void {
+      if (fileStream) {
+        fileStream.end();
+        fileStream = null;
+      }
     }
-  }
-}
-
-/**
- * JSONL形式出力ストラテジーのインスタンスを作成する
- * @param options ストラテジーオプション
- * @returns JSONL形式出力ストラテジーのインスタンス
- */
-export function createJsonlStrategy(options: JsonlStrategyOptions): LogStrategy {
-  return new JsonlStrategy(options);
+  };
 }
