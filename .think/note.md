@@ -2,7 +2,7 @@
 @/docs/coding-guideline.md
 コーディングガイドラインを遵守し、設計手順を実行せよ
 
-_/agent-core と _/code-sarge と _/ole-copipe を参考にして、
+_/ を参考にして、
 汎用ライブラリを作成します。
 
 まずは `result` モジュールを `src/result` 以下に作成してください。
@@ -25,7 +25,7 @@ resultモジュールを作成して
 @/docs/coding-guideline.md
 コーディングガイドラインを遵守し、設計手順を実行せよ
 
-_/agent-core と _/code-sarge と _/ole-copipe を参考にして、
+_/ を参考にして、
 汎用ライブラリを作成します。
 
 loggerモジュールを src/logger 以下に作成してください。
@@ -46,7 +46,7 @@ loggerモジュールを作成して
 @/docs/coding-guideline.md
 コーディングガイドラインを遵守し、設計手順を実行せよ
 
-_/agent-core と _/code-sarge と _/ole-copipe を参考にして、
+_/ を参考にして、
 汎用ライブラリを作成します。
 
 リトライ・バックオフ関連のモジュールを src/retry につくりたいです
@@ -66,7 +66,7 @@ retryモジュールを実装して
 @/docs/coding-guideline.md
 コーディングガイドラインを遵守し、設計手順を実行せよ
 
-_/agent-core と _/code-sarge と _/ole-copipe を参考にして、
+_/ を参考にして、
 汎用ライブラリを作成します。
 
 src/mcp に MCP 関連のコードを入れてほしい
@@ -85,7 +85,7 @@ src/mcp に MCP 関連のコードを入れてほしい
 @/docs/coding-guideline.md
 コーディングガイドラインを遵守し、設計手順を実行せよ
 
-_/agent-core と _/code-sarge と _/ole-copipe から、
+_/ から、
 汎化できそうなものをライブラリとして実装したいです。
 
 HTTPクライアントがほしいです。
