@@ -11,6 +11,9 @@ export * from "./result/index.ts";
 // Loggerモジュールのエクスポート
 export * from "./logger/index.ts";
 
+// Retryモジュールのエクスポート
+export * from "./retry/index.ts";
+
 // 使用例（本番環境ではコメントアウトまたは削除してください）
 if (import.meta.main) {
   const { success, failure, isSuccess, unwrap, createSystemError } = await import("./result/index.ts");
