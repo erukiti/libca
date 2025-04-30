@@ -5,7 +5,9 @@
 	"scripts": {
 		"typecheck": "tsc --noEmit",
 		"test": "bun test src/**/*.test.ts",
-		"dev": "bun run index.ts"
+		"dev": "bun run index.ts",
+		"build": "bun build src/index.ts --outdir=dist --target=node --minify && tsc",
+		"clean": "rm -rf dist"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",
@@ -17,7 +19,13 @@
 		"zod": "^3.22.4"
 	},
 	"description": "汎用ライブラリ集",
-	"version": "0.2.0",
+	"files": [
+		"src",
+		"dist",
+		"README.md",
+		"LICENSE"
+	],
+	"version": "0.2.2",
 	"author": "erukiti",
 	"license": "MIT"
 }
