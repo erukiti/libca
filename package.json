@@ -17,7 +17,7 @@
 		"zod": "^3.22.4"
 	},
 	"description": "汎用ライブラリ集",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"author": "erukiti",
 	"license": "MIT"
 }
